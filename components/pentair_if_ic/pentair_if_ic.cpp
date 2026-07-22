@@ -417,18 +417,21 @@ bool PentairIfIcComponent::validate_if_received_message_() {
     return false;
   }
   
-  // Remove FF 00 FF header
-  rx_buffer_.erase(rx_buffer_.begin());
-  rx_buffer_.erase(rx_buffer_.begin());
-  rx_buffer_.erase(rx_buffer_.begin());
-  
-  std::string pretty_cmd = format_hex_pretty(rx_buffer_);
-  ESP_LOGI(TAG, "IF Package received: %s", pretty_cmd.c_str());
-  
-  parse_if_packet_(rx_buffer_);
-  
-  return false;  // Reset buffer
-}
+  // Dump the COMPLETE packet before modifying it
+std::string raw_packet = format_hex_pretty(rx_buffer_);
+ESP_LOGI(TAG, "RAW IF Packet: %s", raw_packet.c_str());
+
+// Remove FF 00 FF header
+rx_buffer_.erase(rx_buffer_.begin());
+rx_buffer_.erase(rx_buffer_.begin());
+rx_buffer_.erase(rx_buffer_.begin());
+
+std::string pretty_cmd = format_hex_pretty(rx_buffer_);
+ESP_LOGI(TAG, "IF Package received: %s", pretty_cmd.c_str());
+
+parse_if_packet_(rx_buffer_);
+
+return false;
 
 void PentairIfIcComponent::parse_if_packet_(const std::vector<uint8_t> &data) {
   if (data[3] == 0x60 && data[4] == 0x07) {

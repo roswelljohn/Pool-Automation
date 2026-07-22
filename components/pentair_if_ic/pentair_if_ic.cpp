@@ -519,6 +519,7 @@ void PentairIfIcComponent::pumpToLocalControl() {
 }
 
 void PentairIfIcComponent::pumpToRemoteControl() {
+  ESP_LOGI("pentair_if_ic", "pumpToRemoteControl()");
   ESP_LOGI(TAG, "IF Requesting remote control");
   uint8_t remoteControlPacket[] = {0xA5, 0x00, 0x60, 0x10, 0x04, 0x01, 0xFF};
   queue_if_packet_(remoteControlPacket, 7);
@@ -536,12 +537,14 @@ void PentairIfIcComponent::setPumpClock(int hour, int minute) {
 }
 
 void PentairIfIcComponent::run() {
+  ESP_LOGI("pentair_if_ic", "run() called");
   ESP_LOGI(TAG, "IF Run Pump");
   uint8_t pumpPowerPacket[] = {0xA5, 0x00, 0x60, 0x10, 0x06, 0x01, 0x0A};
   queue_if_packet_(pumpPowerPacket, 7);
 }
 
 void PentairIfIcComponent::stop() {
+  ESP_LOGI("pentair_if_ic", "stop() called");
   ESP_LOGI(TAG, "IF Stop Pump");
   uint8_t pumpPowerPacket[] = {0xA5, 0x00, 0x60, 0x10, 0x06, 0x01, 0x04};
   queue_if_packet_(pumpPowerPacket, 7);
@@ -571,6 +574,7 @@ void PentairIfIcComponent::saveValueForProgram(int prog, int value) {
 }
 
 void PentairIfIcComponent::commandRPM(int rpm) {
+  ESP_LOGI("pentair_if_ic", "commandRPM(%d)", rpm);
   ESP_LOGI(TAG, "IF Command RPM: %d rpm", rpm);
   uint8_t pumpPowerPacket[] = {0xA5, 0x00, 0x60, 0x10, 0x01, 0x04, 0x02, 0xC4, 0, 0};
   pumpPowerPacket[8] = floor(rpm / 256);

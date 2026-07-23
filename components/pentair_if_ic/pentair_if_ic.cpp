@@ -104,8 +104,34 @@ void PentairIfIcComponent::loop() {
   // Only send if enough time has passed since ANY transmission
   if (since_last_cmd > 100 && since_last_tx > 150 && since_last_rx > 100) {
     if (!this->tx_queue_.empty()) {
-      TxPacket &packet = this->tx_queue_.front();
 
+    // Look for a HIGH priority packet anywhere in the queue.
+    // If none exists, use the front of the queue.
+    TxPacket packet = this->tx_queue_.front();
+
+    if (packet.priority != PRIORITY_HIGH) {
+
+        std::queue<TxPacket> temp_queue;
+
+        while (!this->tx_queue_.empty()) {
+            TxPacket p = this->tx_queue_.front();
+            this->tx_queue_.pop();
+
+            if (p.priority == PRIORITY_HIGH) {
+                packet = p;
+                break;
+            }
+
+            temp_queue.push(p);
+        }
+
+        while (!this->tx_queue_.empty()) {
+            temp_queue.push(this->tx_queue_.front());
+            this->tx_queue_.pop();
+        }
+
+        this->tx_queue_ = temp_queue;
+    }
       auto &data = packet.data;
       auto type = packet.type;
       auto retries = packet.retries;
@@ -121,7 +147,7 @@ void PentairIfIcComponent::loop() {
           this->tx_queue_.pop();
         } else {
           // Update attempts
-          TxPacket &packet = this->tx_queue_.front();
+         packet.attempts = attempts;
           
           if (this->flow_control_pin_ != nullptr) {
             ESP_LOGV(TAG, "Enable Send");
@@ -272,14 +298,14 @@ void PentairIfIcComponent::send_ic_command_(const uint8_t *command, int command_
   packet.push_back(IC_CMD_FRAME_FOOTER[0]);
   packet.push_back(IC_CMD_FRAME_FOOTER[1]);
   
-  TxPacket tx_packet;
-tx_packet.type = PACKET_TYPE_IF;
-tx_packet.retries = 0;
+ TxPacket tx_packet;
+tx_packet.type = PACKET_TYPE_IC;
+tx_packet.priority = 0;   // normal
+tx_packet.retries = retries;
 tx_packet.attempts = 0;
 tx_packet.data = std::move(packet);
 
 this->tx_queue_.push(tx_packet);
-}
 
 bool PentairIfIcComponent::parse_ic_packet_() {
   size_t len = this->rx_buffer_.size();
@@ -625,15 +651,14 @@ void PentairIfIcComponent::queue_if_packet_(uint8_t message[], int messageLength
   if (!validPacket) {
     ESP_LOGW(TAG, "IF Asking to queue malformed packet");
   } else {
-    TxPacket tx_packet;
-tx_packet.type = PACKET_TYPE_IC;
-tx_packet.retries = retries;
+   TxPacket tx_packet;
+tx_packet.type = PACKET_TYPE_IF;
+tx_packet.priority = 1;   // HIGH priority
+tx_packet.retries = 0;
 tx_packet.attempts = 0;
 tx_packet.data = std::move(packet);
 
 this->tx_queue_.push(tx_packet);
-  }
-}
 
 template<typename... Args>
 std::string PentairIfIcComponent::string_format_(const std::string &format, Args... args) {

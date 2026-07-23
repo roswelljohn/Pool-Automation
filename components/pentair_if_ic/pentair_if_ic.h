@@ -18,7 +18,9 @@ namespace pentair_if_ic {
 // IntelliChlor protocol constants
 static const uint8_t IC_CMD_FRAME_HEADER[2] = {0x10, 0x02};
 static const uint8_t IC_CMD_FRAME_FOOTER[2] = {0x10, 0x03};
-
+static constexpr uint32_t IF_INTER_PACKET_DELAY = 25;
+static constexpr uint32_t IF_REPLY_TIMEOUT      = 200;
+static constexpr uint32_t IF_IDLE_TIME          = 10;
 #define GETBIT8(a, b) ((a) & ((uint8_t) 1 << (b)))
 
 // IntelliFlo enums
@@ -41,6 +43,24 @@ enum program : uint8_t {
   PRIMING = 0x11,
   QUICKCLEAN = 0x0D,
   UNKNOWN = 0xFF,
+};
+enum PacketType {
+  PACKET_TYPE_IC,
+  PACKET_TYPE_IF
+};
+
+struct TxPacket {
+  std::vector<uint8_t> data;
+
+  PacketType type;
+
+  uint8_t retries = 0;
+  uint8_t attempts = 0;
+
+  bool waiting_for_reply = false;
+
+  uint32_t queued_time = 0;
+  uint32_t sent_time = 0;
 };
 
 class PentairIfIcComponent : public PollingComponent, public uart::UARTDevice {
@@ -125,8 +145,8 @@ class PentairIfIcComponent : public PollingComponent, public uart::UARTDevice {
   };
   
   // Unified send queue: <type, retries, attempts, data>
-  std::queue<std::tuple<PacketType, uint8_t, uint8_t, std::vector<uint8_t>>> tx_queue_;
-  
+//  std::queue<std::tuple<PacketType, uint8_t, uint8_t, std::vector<uint8_t>>> tx_queue_;
+  std::queue<TxPacket> tx_queue_;
   uint32_t ic_last_command_timestamp_;
   uint32_t ic_last_recv_timestamp_;
   uint32_t ic_last_loop_timestamp_;

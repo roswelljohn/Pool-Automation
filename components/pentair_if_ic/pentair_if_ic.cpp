@@ -172,10 +172,10 @@ void PentairIfIcComponent::update() {
   this->read_all_chlorinator_info();
   
   // Delay IF requests to avoid collision with IC packets
-  this->set_timeout(500, [this]() {
+ this->set_timeout(500, [this]() {
     this->requestPumpStatus();
-    this->pumpToLocalControl();
-  });
+    // this->pumpToLocalControl();
+});
 }
 
 // ========================================

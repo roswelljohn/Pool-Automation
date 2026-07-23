@@ -121,7 +121,7 @@ void PentairIfIcComponent::loop() {
           this->tx_queue_.pop();
         } else {
           // Update attempts
-          packet.attempts = attempts;
+          TxPacket &packet = this->tx_queue_.front();
           
           if (this->flow_control_pin_ != nullptr) {
             ESP_LOGV(TAG, "Enable Send");

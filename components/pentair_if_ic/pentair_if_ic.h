@@ -140,7 +140,8 @@ class PentairIfIcComponent : public PollingComponent, public uart::UARTDevice {
   
   // Unified send queue: <type, retries, attempts, data>
 //  std::queue<std::tuple<PacketType, uint8_t, uint8_t, std::vector<uint8_t>>> tx_queue_;
-  std::queue<TxPacket> tx_queue_;
+  std::queue<TxPacket> if_queue_;
+  std::queue<TxPacket> ic_queue_;
   uint32_t ic_last_command_timestamp_;
   uint32_t ic_last_recv_timestamp_;
   uint32_t ic_last_loop_timestamp_;

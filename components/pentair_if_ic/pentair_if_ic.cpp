@@ -272,7 +272,13 @@ void PentairIfIcComponent::send_ic_command_(const uint8_t *command, int command_
   packet.push_back(IC_CMD_FRAME_FOOTER[0]);
   packet.push_back(IC_CMD_FRAME_FOOTER[1]);
   
-  this->tx_queue_.push(std::make_tuple(PACKET_TYPE_IC, retries, (uint8_t)0, packet));
+  TxPacket tx_packet;
+tx_packet.type = PACKET_TYPE_IF;
+tx_packet.retries = 0;
+tx_packet.attempts = 0;
+tx_packet.data = std::move(packet);
+
+this->tx_queue_.push(tx_packet);
 }
 
 bool PentairIfIcComponent::parse_ic_packet_() {
@@ -619,7 +625,13 @@ void PentairIfIcComponent::queue_if_packet_(uint8_t message[], int messageLength
   if (!validPacket) {
     ESP_LOGW(TAG, "IF Asking to queue malformed packet");
   } else {
-    this->tx_queue_.push(std::make_tuple(PACKET_TYPE_IF, (uint8_t)0, (uint8_t)0, packet));
+    TxPacket tx_packet;
+tx_packet.type = PACKET_TYPE_IC;
+tx_packet.retries = retries;
+tx_packet.attempts = 0;
+tx_packet.data = std::move(packet);
+
+this->tx_queue_.push(tx_packet);
   }
 }
 

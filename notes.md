@@ -1,3 +1,72 @@
+
+7/23/2026  12:15pm
+Pentair IF/IC Project Checkpoint
+Current Status
+✅ IntelliChlor (IC)
+Working correctly.
+Queue works.
+Responses received.
+Queue entries removed after replies.
+✅ IntelliFlo Communications
+Working correctly.
+Status requests transmit.
+Local control requests transmit.
+Pump replies correctly.
+Packet parser is working.
+Current IF packets sent every cycle:
+A5 00 60 10 07 00     (Status Request)
+A5 00 60 10 04 01 00  (Local Control)
+Pump State
+Current physical state:
+Pump ON
+0 RPM
+Display shows Running Schedule
+Waiting for an external start command
+This is the correct state for testing.
+What We Learned
+Selecting Program 2 from Home Assistant changes the HA entity:
+Pool Pump Program Select >> Program 2
+However no IntelliFlo start/program packet is ever transmitted.
+The log only shows:
+
+IF Sent ...10.07...
+IF Sent ...10.04...
+There is no third IF packet.
+That means:
+
+The command never reaches the transmit queue.
+
+The UART, queue, parser, checksum, and packet transmission are not the problem.
+
+Where We Need To Look Next
+We need to find the callback executed when Home Assistant changes:
+Pool Pump Program Select
+We're looking for code that eventually calls something like:
+queue_if_packet_(...)
+or
+requestProgram(...)
+or
+startProgram(...)
+or
+setProgram(...)
+Searches To Perform Next Session
+Search the project for these, in order:
+Program Select
+Pool Pump Program
+queue_if_packet_
+on_control
+publish_state
+We're trying to find where the HA select entity is connected to the IntelliFlo command generator.
+Important Discovery
+The queue modifications we made are working.
+ESPHome is compiling the edited .cpp, uploading it, and running the new code.
+
+The communication layer is no longer suspect.
+
+The remaining issue is higher up in the application logic—the code that should enqueue a "start Program 2" command is apparently never being called.
+
+Next time, we'll trace the "Pool Pump Program Select" callback to find why it never queues the IntelliFlo start packet. We're very close now.
+
 7/23/2026   11am
 Current status
 Your merged loop() is working correctly.

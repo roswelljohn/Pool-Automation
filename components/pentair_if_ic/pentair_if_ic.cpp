@@ -1,4 +1,4 @@
-#include "pentair_if_ic.h"
+this->ic_queue_.push(tx_packet);#include "pentair_if_ic.h"
 #include "esphome/core/log.h"
 #include <cinttypes>
 
@@ -66,6 +66,7 @@ void PentairIfIcComponent::loop() {
         if (!this->validate_if_received_message_()) {
           this->rx_buffer_.clear();
         }
+        
       } else if (this->rx_buffer_[0] == 0x10) {
         // IntelliChlor packet
         ESP_LOGV(TAG, "Parsing IC packet, buffer size: %d", this->rx_buffer_.size());
@@ -91,98 +92,81 @@ void PentairIfIcComponent::loop() {
     else {
       ESP_LOGV(TAG, "Ignoring unexpected byte: %02X", c);
     }
+}   // end while()
+
+
+// ------------------------------------------------------------
+// Process transmit queues
+// ------------------------------------------------------------
+
+auto since_last_cmd = millis() - this->ic_last_command_timestamp_;
+auto since_last_tx  = millis() - this->last_tx_millis_;
+auto since_last_rx  = millis() - this->last_received_byte_millis_;
+
+if (since_last_cmd > 100 &&
+    since_last_tx  > 150 &&
+    since_last_rx  > 100) {
+
+  // IntelliFlo packets have priority
+  if (!this->if_queue_.empty()) {
+
+    TxPacket &packet = this->if_queue_.front();
+
+    std::string pretty_cmd = format_hex_pretty(packet.data);
+    ESP_LOGI(TAG, "IF Sent: %s", pretty_cmd.c_str());
+
+    this->flush();
+    this->write_array(packet.data);
+
+    this->last_tx_millis_ = millis();
+
+    this->if_queue_.pop();
   }
-  
-  // IntelliChlor processing - only from update(), not from loop()
-  // Remove ic_run_again_ logic to prevent rapid polling
-  
-  // Process unified send queue
-  auto since_last_cmd = millis() - this->ic_last_command_timestamp_;
-  auto since_last_tx = millis() - this->last_tx_millis_;
-  auto since_last_rx = millis() - this->last_received_byte_millis_;
-  
-  // Only send if enough time has passed since ANY transmission
-  if (since_last_cmd > 100 && since_last_tx > 150 && since_last_rx > 100) {
-    if (!this->tx_queue_.empty()) {
 
-    // Look for a HIGH priority packet anywhere in the queue.
-    // If none exists, use the front of the queue.
-    TxPacket packet = this->tx_queue_.front();
+  // Otherwise process IntelliChlor
+  else if (!this->ic_queue_.empty()) {
 
-    if (packet.priority != PRIORITY_HIGH) {
+    TxPacket &packet = this->ic_queue_.front();
 
-        std::queue<TxPacket> temp_queue;
+    packet.attempts++;
 
-        while (!this->tx_queue_.empty()) {
-            TxPacket p = this->tx_queue_.front();
-            this->tx_queue_.pop();
+    ESP_LOGD(TAG,
+             "IC Process Queue Retries:%u Attempt:%u",
+             packet.retries,
+             packet.attempts);
 
-            if (p.priority == PRIORITY_HIGH) {
-                packet = p;
-                break;
-            }
+    if (packet.attempts > packet.retries) {
 
-            temp_queue.push(p);
-        }
+      ESP_LOGE(TAG,
+               "IC No response %u > %u removing from send queue",
+               packet.retries,
+               packet.attempts);
 
-        while (!this->tx_queue_.empty()) {
-            temp_queue.push(this->tx_queue_.front());
-            this->tx_queue_.pop();
-        }
+      this->ic_queue_.pop();
 
-        this->tx_queue_ = temp_queue;
-    }
-      auto &data = packet.data;
-      auto type = packet.type;
-      auto retries = packet.retries;
-      auto attempts = packet.attempts;
-      
-      attempts++;
-      
-      if (type == PACKET_TYPE_IC) {
-        ESP_LOGD(TAG, "IC Process Queue Retries:%i Attempt:%i", retries, attempts);
-        
-        if (attempts > retries) {
-          ESP_LOGE(TAG, "IC No response %i > %i removing from send queue", retries, attempts);
-          this->tx_queue_.pop();
-        } else {
-          // Update attempts
-         packet.attempts = attempts;
-          
-          if (this->flow_control_pin_ != nullptr) {
-            ESP_LOGV(TAG, "Enable Send");
-            this->flow_control_pin_->digital_write(true);
-          }
-          
-          std::string pretty_cmd = format_hex_pretty(data);
-          ESP_LOGI(TAG, "IC Sent: %s", pretty_cmd.c_str());
-          this->write_array(data);
-          this->flush();
-          
-          if (this->flow_control_pin_ != nullptr) {
-            ESP_LOGV(TAG, "Disable Send");
-            this->flow_control_pin_->digital_write(false);
-          }
-          
-          this->ic_last_command_timestamp_ = millis();
-          this->last_tx_millis_ = millis();
-        }
-      } else if (type == PACKET_TYPE_IF) {
-        // IntelliFlo packet - send immediately and remove from queue
-        this->flush();
-        this->write_array(&data[0], data.size());
-        
-        std::string pretty_cmd = format_hex_pretty(data);
-        ESP_LOGI(TAG, "IF Sent: %s", pretty_cmd.c_str());
-        
-        this->last_received_byte_millis_ = millis();
-        this->last_tx_millis_ = millis();
-        this->tx_queue_.pop();
-      }
+    } else {
+
+      if (this->flow_control_pin_ != nullptr)
+        this->flow_control_pin_->digital_write(true);
+
+      std::string pretty_cmd = format_hex_pretty(packet.data);
+      ESP_LOGI(TAG, "IC Sent: %s", pretty_cmd.c_str());
+
+      this->write_array(packet.data);
+      this->flush();
+
+      if (this->flow_control_pin_ != nullptr)
+        this->flow_control_pin_->digital_write(false);
+
+      this->ic_last_command_timestamp_ = millis();
+      this->last_tx_millis_ = millis();
     }
   }
 }
 
+}   // end loop()
+
+ 
 void PentairIfIcComponent::update() {
   // Poll both devices - IC first, IF after a delay
   this->read_all_chlorinator_info();
@@ -305,7 +289,7 @@ tx_packet.retries = retries;
 tx_packet.attempts = 0;
 tx_packet.data = std::move(packet);
 
-this->tx_queue_.push(tx_packet);
+this->ic_queue_.push(tx_packet);
 
 bool PentairIfIcComponent::parse_ic_packet_() {
   size_t len = this->rx_buffer_.size();
@@ -658,7 +642,7 @@ tx_packet.retries = 0;
 tx_packet.attempts = 0;
 tx_packet.data = std::move(packet);
 
-this->tx_queue_.push(tx_packet);
+this->if_queue_.push(tx_packet);
 
 template<typename... Args>
 std::string PentairIfIcComponent::string_format_(const std::string &format, Args... args) {

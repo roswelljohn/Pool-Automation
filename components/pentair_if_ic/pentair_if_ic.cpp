@@ -380,11 +380,10 @@ bool PentairIfIcComponent::parse_ic_packet_() {
       }
       
         
-        if (!this->tx_queue_.empty() && std::get<0>(this->tx_queue_.front()) == PACKET_TYPE_IC) {
-          ESP_LOGD(TAG, "IC Got response, removing from send queue");
-          this->tx_queue_.pop();
-        }
-        
+       if (!this->ic_queue_.empty()) {
+  ESP_LOGD(TAG, "IC Got response, removing from send queue");
+  this->ic_queue_.pop();
+}
         return true;  // Packet complete
       }
     }

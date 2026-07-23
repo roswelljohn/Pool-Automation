@@ -174,7 +174,7 @@ void PentairIfIcComponent::update() {
   // Delay IF requests to avoid collision with IC packets
  this->set_timeout(500, [this]() {
     this->requestPumpStatus();
-    // this->pumpToLocalControl();
+ // this->pumpToLocalControl();
 });
 }
 

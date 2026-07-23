@@ -104,11 +104,12 @@ void PentairIfIcComponent::loop() {
   // Only send if enough time has passed since ANY transmission
   if (since_last_cmd > 100 && since_last_tx > 150 && since_last_rx > 100) {
     if (!this->tx_queue_.empty()) {
-      auto packet = this->tx_queue_.front();
-      auto type = std::get<0>(packet);
-      auto retries = std::get<1>(packet);
-      auto attempts = std::get<2>(packet);
-      auto data = std::get<3>(packet);
+      TxPacket &packet = this->tx_queue_.front();
+
+      auto &data = packet.data;
+      auto type = packet.type;
+      auto retries = packet.retries;
+      auto attempts = packet.attempts;
       
       attempts++;
       

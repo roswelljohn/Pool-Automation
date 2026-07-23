@@ -50,17 +50,11 @@ enum PacketType {
 };
 
 struct TxPacket {
-  std::vector<uint8_t> data;
-
   PacketType type;
-
-  uint8_t retries = 0;
-  uint8_t attempts = 0;
-
-  bool waiting_for_reply = false;
-
-  uint32_t queued_time = 0;
-  uint32_t sent_time = 0;
+  uint8_t priority;      // 0 = normal, 1 = high
+  uint8_t retries;
+  uint8_t attempts;
+  std::vector<uint8_t> data;
 };
 
 class PentairIfIcComponent : public PollingComponent, public uart::UARTDevice {
